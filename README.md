@@ -1,6 +1,45 @@
-# **MasterFund: High-Performance Estate Simulation Engine**
+# **MasterFund: High-Performance Wealth Inheritance Hypervisor**
 
 A cache-friendly, Data-Oriented Design (DOD) simulation engine engineered for high throughput, flat contiguous memory layouts, and zero virtual-table pointer (vptr) overhead.
+
+## Concept: The Wealth Hypervisor
+
+The **Wealth Hypervisor** acts as an automated, impartial family referee for wealth governance. It enforces clear, algorithmic rules to ensure multi-generational legacy preservation, eliminating bad spending habits and family disputes.
+
+### Core Governance
+
+* **Contributory Earn-Out & Multiplier Payout**
+  * **Earn-to-Withdraw**: The *only* mechanism for a beneficiary to unlock fund distributions is by actively contributing capital into the fund. To earn money, you must make money.
+  * **Policy Multiplier**: Distributions match contributions up to the configured policy net multiplier. For example, a $3.0\times$ multiplier on a $\$10,000$ personal contribution yields a $\$30,000$ total payout (returning the $\$10,000$ principal alongside $\$20,000$ of fund growth).
+  * **Tax Efficiency & Incentive Design**: Returning principal alongside capital distributions optimizes tax efficiency while reinforcing the psychological principle that wealth extraction requires personal productivity.
+
+* **Protecting the Golden Goose & Zero Favoritism**
+  * **Vault Lock**: Core vault capital remains protected; descendants can only extract payouts up to their earned multiplier and current branch cap ceiling.
+  * **Deterministic Execution**: Eliminates subjective approvals, manual requests, and family drama—distributions execute strictly based on code policy, state math, and verified metrics.
+  * **No Automatic Emergency Coverage**: No loop-hole for excused emergency coverage because it eliminate the prudence from risk assessment.
+
+* **Perpetual Capital Solvency (Infinite Runway)**
+  * **Stochastic Stress-Testing**: `MarketEngine` models multi-decade asset growth simulating standard S&P 500 market dynamics (~10% average annual returns) via log-normal drift $e^{r_t}$ with Itô correction.
+  * **Zero-Depletion Guarantee**: By enforcing dynamic payout caps against simulated portfolio growth, the engine mathematically guarantees the principal vault will never run out of money across multi-generational horizons.
+
+---
+
+### Prerequisites
+* **Compiler**: C++20 compliant compiler (GCC 10+, Clang 12+, or MSVC 2019+)
+* **Build System**: CMake 3.20 or higher
+
+### Build Steps
+
+```bash
+# 1. Configure the project build tree in Release mode
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+
+# 2. Compile the executable using all available cores
+cmake --build build --config Release -j
+
+# 3. Run the simulation binary
+./build/fund_sim
+```
 
 ## **Architecture Overview**
 
@@ -39,6 +78,7 @@ The engine processes annual simulation ticks through four sequential phases orch
                               | Beneficiary [64-byte CachePOD]|
                               +-------------------------------+
 ```
+
 
 ### **Core Components**
 
