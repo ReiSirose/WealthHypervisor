@@ -93,15 +93,15 @@ The engine processes annual simulation ticks through a **3-Phase Settlement Cycl
 
 | Component | Responsibility | Implementation Details |
 | :---- | :---- | :---- |
-| **MasterFund** | Global simulation orchestrator. | Owns all sub-engines. Each `step_annual_tick()` executes: (1) market growth, (2) per-stirpes rebalancing, (3) 3-phase settlement, (4) demographic mutations, (5) telemetry capture. Tracks: initial\_aum, current\_aum, current\_year. |
+| **MasterFund** | Global simulation orchestrator. | Owns all sub-engines. Each `step_annual_tick()` executes: (1) market growth, (2) per-stirpes rebalancing, (3) 3-phase settlement, (4) demographic mutations, (5) telemetry capture. Tracks: `initial_aum`, `current_aum`, `current_year`. |
 | **MarketEngine** | S\&P 500 stochastic drift. | MT19937 PRNG applying log-normal drift $e^{r_t}$ with Itô correction. Configurable seed, CAGR target (~10%), annual volatility (~15%). Size: ~2.5 KB. |
-| **PolicyEngine** | Governance rules & cap enforcement. | Stateless rule engine with **3 governance modes** (STRICT\_PARTITION, DYNAMIC\_POOLING, HYBRID\_SPILLOVER). Enforces: 3.0x match multiplier, 3.0% global cap ratio, 1.5x base spillover ceiling, age-of-majority rules. |
+| **PolicyEngine** | Governance rules & cap enforcement. | Stateless rule engine with **3 governance modes** (`STRICT_PARTITION`, `DYNAMIC_POOLING`, `HYBRID_SPILLOVER`). Enforces: 3.0x match multiplier, 3.0% global cap ratio, 1.5x base spillover ceiling, age-of-majority rules. |
 | **LineageRegistry** | Tree hierarchy & settlement engine. | Owns two flat contiguous arenas: `branch_arena` (LCRS trees) and `beneficiary_arena` (heir PODs). Implements **3-phase per-stirpes settlement**, per-stirpes rebalancing, and branch traversal without dynamic allocation. |
 | **DemographicEngine** | Stochastic lifecycle & family growth. | Seeds initial family topology and mutates via: birth events, aging/death transitions, branch creation. O(1) registration into registry arenas. Configurable rates: birth, branching, contribution volatility. |
 | **TelemetryLogger** | State snapshots & telemetry export. | Double-buffered capture of annual snapshots (year, AUM, phase payouts, heir/branch details). Exports to JSON (optional) or binary format. Zero-copy move semantics. |
-| **AnnualSnapshot** | Transient DTO capturing year state. | POD struct recording: year, starting\_aum, ending\_aum, global\_cap, phase disbursements, branch/heir snapshots. Assembled during settlement, moved into TelemetryLogger history. |
-| **HeirSnapshot** | Per-beneficiary annual record. | Captures: heir\_id, branch\_id, age, capital\_contribution, raw\_match\_demand, base\_payout, spillover\_payout, unmet\_demand. Used for telemetry and debugging. |
-| **BranchSnapshot** | Per-branch annual aggregate. | Captures: branch\_id, virtual\_share\_percentage, base\_cap, base\_disbursed, spillover\_disbursed, active\_heir\_count. Reflects branch-level settlement totals. |
+| **AnnualSnapshot** | Transient DTO capturing year state. | POD struct recording: `year`, `starting_aum`, `ending_aum`, `global_cap`, phase disbursements, branch/heir snapshots. Assembled during settlement, moved into TelemetryLogger history. |
+| **HeirSnapshot** | Per-beneficiary annual record. | Captures: `heir_id`, `branch_id`, `age`, `capital_contribution`, `raw_match_demand`, `base_payout`, `spillover_payout`, `unmet_demand`. Used for telemetry and debugging. |
+| **BranchSnapshot** | Per-branch annual aggregate. | Captures: `branch_id`, `virtual_share_percentage`, `base_cap`, `base_disbursed`, `spillover_disbursed`, `active_heir_count`. Reflects branch-level settlement totals. |
 
 ## **Memory Layout & Cache Alignment**
 
@@ -186,7 +186,7 @@ Key struct sizes (verified by `static_assert` in main.cpp):
 
 The `PolicyEngine` supports three distinct governance strategies, each with different wealth distribution philosophy:
 
-#### **1. STRICT_PARTITION (Hard Ceiling)**
+#### **1. `STRICT_PARTITION` (Hard Ceiling)**
 Each branch receives a fixed entitlement cap based on per-stirpes share:
 ```
 Branch Ceiling = Global Cap × Branch Share (no spillover allowed)
@@ -194,7 +194,7 @@ Branch Ceiling = Global Cap × Branch Share (no spillover allowed)
 - Pros: Predictable, prevents one branch from claiming excess
 - Cons: Unused capital in underfunded branches cannot flow to others
 
-#### **2. DYNAMIC_POOLING (Full Commons)**
+#### **2. `DYNAMIC_POOLING` (Full Commons)**
 All branches compete for the global cap without hard ceilings:
 ```
 Branch Ceiling = Global Cap (can claim up to 100% if demand exists)
@@ -202,7 +202,7 @@ Branch Ceiling = Global Cap (can claim up to 100% if demand exists)
 - Pros: Maximizes capital deployment based on actual contribution demand
 - Cons: High-performing branches can monopolize payouts
 
-#### **3. HYBRID_SPILLOVER (Recommended - Default)**
+#### **3. `HYBRID_SPILLOVER` (Recommended - Default)**
 Each branch gets base entitlement + bounded spillover allowance:
 ```
 Branch Ceiling = (Global Cap × Branch Share) × Spillover Cap Ratio (default: 1.5x)
@@ -215,7 +215,7 @@ Example: $300k global cap × 0.50 share × 1.5 spillover = $225k effective ceili
 
 **Per-stirpes** (by family branch) is a legal inheritance principle ensuring equitable wealth distribution across family lines. The engine implements this via dynamic share rebalancing:
 
-1. **Initial Share Assignment**: Each branch receives a virtual\_share\_percentage based on its depth in the family tree
+1. **Initial Share Assignment**: Each branch receives a `virtual_share_percentage` based on its depth in the family tree
 2. **Rebalancing Trigger**: Occurs annually before settlement when demographic changes happen (births, deaths, new branches)
 3. **Recalculation**: Shares are recomputed top-down to reflect current branch structure
 4. **Result**: Each beneficiary's effective allocation accounts for sibling, cousin, and generational fairness
@@ -253,7 +253,7 @@ For each branch with demand > base_allocation:
 ```
 Distributes unused capital from over-entitled branches to under-funded active heirs, up to 1.5x their base ceiling.
 
-**Result**: By end of phase 3, total payouts remain ≤ global\_cap, ensuring perpetual capital solvency.
+**Result**: By end of phase 3, total payouts remain ≤ `global_cap`, ensuring perpetual capital solvency.
 
 ## **Performance Profiling & Hardware Counters**
 
@@ -263,9 +263,9 @@ Baseline profiling reveals the runtime performance, bottlenecks, and execution c
 
 | Execution Target | Time (ms) | Time % | CPU Cycles | Cycle % |
 | :---- | :---- | :---- | :---- | :---- |
-| **TelemetryLogger::export\_to\_json** | **10.10 ms** | **76.5%** | **166.20 M** | **83.3%** |
-| **MasterFund::step\_annual\_tick** (all 3 phases + rebalance) | 1.70 ms | 12.9% | 21.05 M | 10.6% |
-| **DemographicEngine::step\_demographics** | 0.40 ms | 3.0% | 6.85 M | 3.4% |
+| `TelemetryLogger::export_to_json` | **10.10 ms** | **76.5%** | **166.20 M** | **83.3%** |
+| `MasterFund::step_annual_tick` (all 3 phases + rebalance) | 1.70 ms | 12.9% | 21.05 M | 10.6% |
+| `DemographicEngine::step_demographics` | 0.40 ms | 3.0% | 6.85 M | 3.4% |
 | **Total Engine Run** | **13.20 ms** | **100.0%** | **199.50 M** | **100.0%** |
 
 ### **Hardware Counter Summary**
@@ -301,9 +301,11 @@ struct MarketEngine {
 
 Each year generates a market multiplier via log-normal drift with Itô correction:
 
-$$\text{log\_mean} = \ln(1 + \text{CAGR}) - \frac{1}{2}\sigma^2$$
-$$\text{annual\_multiplier} = e^{\mathcal{N}(\text{log\_mean}, \sigma)}$$
-$$\text{new\_AUM} = \text{current\_AUM} \times \text{annual\_multiplier}$$
+$$\text{logMean} = \ln(1 + \text{CAGR}) - \frac{\sigma^2}{2}$$
+
+$$\text{annualMultiplier} = e^{N(\text{logMean}, \sigma)}$$
+
+$$\text{newAUM} = \text{currentAUM} \cdot \text{annualMultiplier}$$
 
 This ensures:
 - **Long-term drift** toward target CAGR (unbiased log-normal expectation)
@@ -523,7 +525,7 @@ python3 analyze_telemetry.py simulation_telemetry.json
 
 ### **1. JSON Export Overhaul (Target: ~80% Cycle Reduction)**
 
-> * **Problem**: TelemetryLogger::export\_to\_json consumes **83.3% of CPU cycles** (166.2M cycles) and 76.5% of total runtime due to standard string stream formatting and synchronous I/O operations.  
+> * **Problem**: `TelemetryLogger::export_to_json` consumes **83.3% of CPU cycles** (166.2M cycles) and 76.5% of total runtime due to standard string stream formatting and synchronous I/O operations.  
 > * **Solution**:  
   * Replace std::ofstream << operator with memory-mapped file I/O, bypassing expensive write() syscalls
   * Use raw `std::memcpy` for binary POD serialization instead of slow string formatting and heap allocation
