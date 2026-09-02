@@ -8,7 +8,6 @@
 class TelemetryLogger {
 private:
     std::vector<AnnualSnapshot> history;
-
 public:
     TelemetryLogger() = default;
 
@@ -16,6 +15,7 @@ public:
     void record_year(AnnualSnapshot snapshot);
 
     [[nodiscard]] bool export_to_json(const std::string& filepath) const;
+    [[nodiscard]] bool export_to_binary_mmap(const std::string& filepath) const;
     void clear() noexcept;
 
     [[nodiscard]] size_t recorded_years() const noexcept { return history.size(); }

@@ -29,7 +29,11 @@ public:
     void step_annual_tick();
 
     // Runs a full multi-year simulation and optionally flushes JSON telemetry to disk
-    void run_simulation(uint32_t total_years, DemographicEngine& demo_engine, const std::string& output_json_path = "");
+    void run_simulation_json(uint32_t total_years, DemographicEngine& demo_engine, const std::string& output_json_path);
+    void run_simulation_binary(uint32_t total_years, DemographicEngine& demo_engine, const std::string& output_bin_path);
+    void run_simulation_both(uint32_t total_years, DemographicEngine& demo_engine,
+                        const std::string& output_json_path,
+                        const std::string& output_bin_path);
 
     void reset() noexcept;
 

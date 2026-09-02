@@ -61,7 +61,8 @@ void MasterFund::step_annual_tick() {
 
 }
 
-void MasterFund::run_simulation(uint32_t total_years, DemographicEngine& demo_engine, const std::string& output_json_path) {
+void MasterFund::run_simulation_json(uint32_t total_years, DemographicEngine &demo_engine, const std::string &output_json_path)
+{
     if (total_years == 0) return;
     
     telemetry.reserve_years(total_years);
@@ -85,6 +86,64 @@ void MasterFund::run_simulation(uint32_t total_years, DemographicEngine& demo_en
     }
 }
 
+void MasterFund::run_simulation_binary(uint32_t total_years, DemographicEngine &demo_engine, const std::string &output_bin_path)
+{
+    if (total_years == 0) return;
+    
+    telemetry.reserve_years(total_years);
+    // Dynamically balance the tree shares between beneficiary
+    lineages.rebalance_per_stirpes_shares();
+
+    for (uint32_t y = 0; y < total_years; ++y) {
+        demo_engine.step_demographics(*this);
+        step_annual_tick();
+    }
+    if (!output_bin_path.empty()) {
+        if (telemetry.export_to_binary_mmap(output_bin_path)) {
+            std::cout << "[MasterFund] Simulation complete (" << total_years
+                      << " years). Binary telemetry exported to: " << output_bin_path << "\n";
+        } else {
+            std::cerr << "[MasterFund] Warning: Failed to export binary telemetry to: "
+                      << output_bin_path << "\n";
+        }
+    }
+}
+
+void MasterFund::run_simulation_both(uint32_t total_years, DemographicEngine &demo_engine,
+                                     const std::string &output_json_path,
+                                     const std::string &output_bin_path)
+{
+    if (total_years == 0) return;
+    
+    telemetry.reserve_years(total_years);
+    // Dynamically balance the tree shares between beneficiary
+    lineages.rebalance_per_stirpes_shares();
+
+    for (uint32_t y = 0; y < total_years; ++y) {
+        demo_engine.step_demographics(*this);
+        step_annual_tick();
+    }
+    // export to json
+    if (!output_json_path.empty()) {
+        if(telemetry.export_to_json(output_json_path)) {
+            std::cout << "[MasterFund] Simulation complete (" << total_years 
+                      << " years). Telemetry exported to: " << output_json_path << "\n";
+        }
+        else {
+            std::cerr << "[MasterFund] Warning: Failed to export telemetry to: " 
+                      << output_json_path << "\n";
+        }
+    }
+    if (!output_bin_path.empty()) {
+        if (telemetry.export_to_binary_mmap(output_bin_path)) {
+            std::cout << "[MasterFund] Simulation complete (" << total_years
+                      << " years). Binary telemetry exported to: " << output_bin_path << "\n";
+        } else {
+            std::cerr << "[MasterFund] Warning: Failed to export binary telemetry to: "
+                      << output_bin_path << "\n";
+        }
+    }
+}
 void MasterFund::reset() noexcept {
         current_aum = initial_aum;
         current_year = 0;

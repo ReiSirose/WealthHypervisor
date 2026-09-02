@@ -69,13 +69,29 @@ int main () {
     std::cout << "[Setup] Active Beneficiaries:    " << fund.get_lineages().beneficiary_count() << "\n";
     std::cout << "\n[Engine] Running " << SIMULATION_YEARS << "-year dynamic simupplation...\n\n";
 
+    // double elapsed_ms = measure_execution_ms([&]() {
+    //     fund.run_simulation_json(
+    //         SIMULATION_YEARS,
+    //         demo_engine, 
+    //         "./simulation_telemetry.json"
+    //     );
+    // });
+
     double elapsed_ms = measure_execution_ms([&]() {
-        fund.run_simulation(
+        fund.run_simulation_binary(
             SIMULATION_YEARS,
             demo_engine, 
-            "./simulation_telemetry.json"
+            "./simulation_telemetry.bin"
         );
     });
+    // double elapsed_ms = measure_execution_ms([&]() {
+    //     fund.run_simulation_both(
+    //         SIMULATION_YEARS,
+    //         demo_engine, 
+    //         "./simulation_telemetry.json",
+    //         "./simulation_telemetry.bin"
+    //     );
+    // });
 
     std::cout << "\n=========================================================\n";
     std::cout << "                  SIMULATION SUMMARY                     \n";
