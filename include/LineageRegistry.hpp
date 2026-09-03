@@ -18,6 +18,11 @@ class LineageRegistry {
 private:
     std::vector<BranchNode>  branch_arena;
     std::vector<Beneficiary> beneficiary_arena;
+    std::vector<uint32_t>    active_heir_index;
+
+    std::vector<double>      annual_branch_base_caps;
+    std::vector<double>      annual_branch_disbursed;
+    std::vector<double>      annual_heir_raw_claims;
 
     double last_settled_payout{0.0};
 
@@ -39,8 +44,11 @@ public:
     // Returns total cash disbursed from the fund in this cycle
     double execute_annual_settlement(double global_cap, const PolicyEngine& policy) noexcept;
 
+    double execute_annual_settlement_future(double global_cap, const PolicyEngine& policy) noexcept;
     void capture_telemetry_snapshot(AnnualSnapshot& snap,  double global_cap, const PolicyEngine& policy) const;
 
+    void rebuild_active_heir_indice() noexcept;
+    // void sync_runtime_buffers() noexcept;
     void reserve_capacity(size_t expected_branches, size_t expected_heirs);
     //getter 
     [[nodiscard]] inline size_t branch_count() const noexcept { return branch_arena.size(); }

@@ -201,7 +201,83 @@ double LineageRegistry::execute_annual_settlement(double global_cap, const Polic
     return total_disbursed;
 }
 
-void LineageRegistry::capture_telemetry_snapshot(AnnualSnapshot& snap, double global_cap, const PolicyEngine& policy) const {
+double LineageRegistry::execute_annual_settlement_future(double global_cap, const PolicyEngine &policy) noexcept
+{
+    if (global_cap <= 0.0 || beneficiary_arena.empty()) {
+        last_settled_payout = 0.0;
+        return 0.0;
+    }
+    // std::fill(annual_branch_base_caps.begin(), annual_branch_base_caps.end(), 0.0);
+    // std::fill(annual_branch_disbursed.begin(), annual_branch_disbursed.end(), 0.0);
+    // std::fill(annual_heir_raw_claims.begin(), annual_heir_raw_claims.end(), 0.0);
+    annual_branch_base_caps.assign(branch_arena.size(), 0.0);
+    annual_branch_disbursed.assign(branch_arena.size(), 0.0);
+    annual_heir_raw_claims.assign(beneficiary_arena.size(), 0.0);
+
+    double total_disbursed {0.0};
+    rebuild_active_heir_indice();
+
+    // Precompute branch caps once per year, reusing the same scratch storage.
+    for (size_t i = 0; i < branch_arena.size(); ++i) {
+        annual_branch_base_caps[i] = global_cap * branch_arena[i].virtual_share_percentage;
+    }
+
+    // Phase 1: settle only active heirs using the cached branch lookup created at add_beneficiary.
+    for (uint32_t heir_index : active_heir_index) {
+        Beneficiary& heir = beneficiary_arena[heir_index];
+        
+        heir.last_approved_base_payout = 0.0;
+        heir.last_approved_spillover_payout = 0.0;
+        uint32_t branch_idx = heir.branch_index;
+
+        double raw_match = heir.annual_capital_contribution * policy.get_net_multiplier();
+        annual_heir_raw_claims[heir_index] = raw_match;
+
+        double heir_base_cap = branch_arena[branch_idx].calculate_individual_heir_cap(annual_branch_base_caps[branch_idx]);
+        double base_payout = std::min(raw_match, heir_base_cap);
+
+        heir.last_approved_base_payout = base_payout;
+        annual_branch_disbursed[branch_idx] += base_payout;
+        total_disbursed += base_payout;
+    }
+
+    // Phase 2 & 3: only process active heirs again, using the cached branch index.
+    if (policy.get_mode() == GovernanceMode::HYBRID_SPILLOVER) {
+        double surplus_pool = global_cap - total_disbursed;
+
+        if (surplus_pool > 0.0) {
+            for (uint32_t heir_index : active_heir_index) {
+                Beneficiary& heir = beneficiary_arena[heir_index];
+                double remaining_demand = annual_heir_raw_claims[heir_index] - heir.last_approved_base_payout;
+                if (remaining_demand <= 0.0) {
+                    continue;
+                }
+
+                uint32_t branch_idx = heir.branch_index;
+
+                double branch_ceiling = policy.calculate_branch_ceiling(global_cap, branch_arena[branch_idx].virtual_share_percentage);
+                double branch_spillover_room = branch_ceiling - annual_branch_disbursed[branch_idx];
+
+                if (branch_spillover_room > 0.0) {
+                    double spillover_grant = std::min({remaining_demand, branch_spillover_room, surplus_pool});
+
+                    heir.last_approved_spillover_payout += spillover_grant;
+                    annual_branch_disbursed[branch_idx] += spillover_grant;
+                    surplus_pool -= spillover_grant;
+                    total_disbursed += spillover_grant;
+
+                    if (surplus_pool <= 0.0) break;
+                }
+            }
+        }
+    }
+
+    last_settled_payout = total_disbursed;
+    return total_disbursed;
+}
+
+void LineageRegistry::capture_telemetry_snapshot(AnnualSnapshot &snap, double global_cap, const PolicyEngine &policy) const
+{
     snap.branch_states.reserve(branch_arena.size());
     snap.heir_states.reserve(beneficiary_arena.size());
 
@@ -231,7 +307,16 @@ void LineageRegistry::capture_telemetry_snapshot(AnnualSnapshot& snap, double gl
 void LineageRegistry::reserve_capacity(size_t expected_branches, size_t expected_heirs) {
     branch_arena.reserve(expected_branches);
     beneficiary_arena.reserve(expected_heirs);
+    annual_branch_base_caps.reserve(expected_branches);
+    annual_branch_disbursed.reserve(expected_branches);
+    annual_heir_raw_claims.reserve(expected_heirs);
 }
+
+// void LineageRegistry::sync_runtime_buffers() noexcept {
+//     annual_branch_base_caps.resize(branch_arena.size(), 0.0);
+//     annual_branch_disbursed.resize(branch_arena.size(), 0.0);
+//     annual_heir_raw_claims.resize(beneficiary_arena.size(), 0.0);
+// }
 
 uint32_t LineageRegistry::get_branch_index_by_id(uint32_t branch_id) const {
     for (uint32_t idx = 0; idx < branch_arena.size(); ++idx) {
@@ -240,4 +325,17 @@ uint32_t LineageRegistry::get_branch_index_by_id(uint32_t branch_id) const {
         }
     }
     return INVALID_INDEX;
+}
+
+
+void LineageRegistry::rebuild_active_heir_indice() noexcept{
+    active_heir_index.clear();
+    active_heir_index.reserve(beneficiary_arena.size());
+
+    for(uint32_t i = 0; i < beneficiary_arena.size(); ++i) {
+        const Beneficiary& heir = beneficiary_arena[i];
+        if(heir.state == HeirState::ACTIVE && heir.annual_capital_contribution > 0.0) {
+            active_heir_index.push_back(i);
+        }
+    }
 }

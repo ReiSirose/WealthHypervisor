@@ -31,7 +31,7 @@ void MasterFund::step_annual_tick() {
     lineages.rebalance_per_stirpes_shares();
 
     // 5. Execute 3-Phase Settlement across all family lineages
-    const double total_disbursed = lineages.execute_annual_settlement(global_cap, policy_engine);
+    const double total_disbursed = lineages.execute_annual_settlement_future(global_cap, policy_engine);
 
     // 6. Deduct actual cash payouts from Master Fund AUM
     current_aum -= total_disbursed;
