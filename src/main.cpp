@@ -18,14 +18,14 @@ double measure_execution_ms(Func&& func, Args&&... args) {
 
 int main () {
     static_assert(sizeof(Beneficiary) == 64);
-    static_assert(sizeof(MarketEngine) == 2560);
+    static_assert(sizeof(MarketEngine) == 2544);
     static_assert(sizeof(PolicyConfig) == 32);
     static_assert(sizeof(BranchNode) == 32);
     static_assert(sizeof(LineageRegistry) == 152);
     static_assert(sizeof(HeirSnapshot) == 56);
     static_assert(sizeof(BranchSnapshot) == 48);
     static_assert(sizeof(AnnualSnapshot) == 112);
-    static_assert(sizeof(MasterFund) == 2792);
+    static_assert(sizeof(MasterFund) == 2776);
 
     std::cout << "=========================================================\n";
     std::cout << "      MASTER FUND MONTE CARLO SIMULATION ENGINE          \n";
