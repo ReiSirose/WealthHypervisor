@@ -143,7 +143,8 @@ The main bottleneck in the original profile was telemetry export. Switching from
 | :---- | :---- | :---- |
 | JSON export build | **91.0207 ms** | **1098.65 years/sec** |
 | Binary mmap export build | **8.6628 ms** | **11543.62 years/sec** |
-| **Improvement** | **10.5x faster** | **10.5x higher throughput** |
+| Binary mmap + branch reduction | **4.5760 ms** | **21852.95 years/sec** |
+| **JSON → binary mmap + branch reduction** | **19.89x faster** | **19.89x higher throughput** |
 
 ### Hardware Counters
 
