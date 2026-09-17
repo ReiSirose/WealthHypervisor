@@ -20,7 +20,6 @@ struct alignas(64) Beneficiary {
     uint32_t branch_index;
     uint16_t age;
     HeirState state;
-    //uint8_t padding;
 
     Beneficiary(uint64_t heir_id, uint16_t start_age, uint32_t parent_branch_id)
     : id(heir_id),

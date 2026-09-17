@@ -12,6 +12,7 @@ A cache-friendly, data-oriented simulation engine for modeling multi-generationa
 - [Core Components](#core-components)
 - [Performance Profiling & Hardware Counters](#performance-profiling--hardware-counters)
 - [Technical Specification](#technical-specification)
+- [Known Issues](#known-issues)
 - [Complete Usage Example](#complete-usage-example)
 - [Optimization Review & Next Steps](#optimization-review--next-steps)
 
@@ -159,6 +160,14 @@ The main bottleneck in the original profile was telemetry export. Switching from
 
 For implementation details including memory layout, governance modes, per-stirpes logic, telemetry format, and the detailed profiling notes, see [SPEC.md](SPEC.md).
 
+## Known Issues
+
+### Branch telemetry snapshots are currently empty
+
+`LineageRegistry::capture_telemetry_snapshot()` reserves capacity for `AnnualSnapshot::branch_states` but does not currently append any `BranchSnapshot` records. As a result, yearly telemetry contains heir snapshots but an empty branch snapshot collection.
+
+This is a telemetry capture defect, not an indication that branch settlement state is absent from the registry. The branch-level data remains available during settlement and should be copied into the annual snapshot before export.
+
 ## Complete Usage Example
 
 ```cpp
@@ -234,6 +243,18 @@ This exceeded the original target and moved the remaining bottleneck into the si
 
 ### Next Planned Optimization: Demographic Transition Hot Path
 
-The next candidate is `DemographicEngine::step_demographics()`, especially annual lifecycle and contribution updates.
+The demographic transition path remains a separate optimization target, especially annual lifecycle and contribution updates in `DemographicEngine::step_demographics()`.
 
 Likely directions include separate active and inactive heir streams, batch transitions using index arrays, compile-time policy constants, and contiguous mutation patterns while preserving simulation semantics.
+
+### Next Planned Optimization: Telemetry AoS → SoA Rearchitecture
+
+The next optimization will redesign the telemetry representation from an **Array of Structures (AoS)** into a **Structure of Arrays (SoA)** for more efficient column-oriented analysis and export.
+
+The affected types are `BranchSnapshot`, `HeirSnapshot`, and `AnnualSnapshot`. Instead of storing vectors of complete snapshot objects, the telemetry layer will store contiguous columns such as:
+
+- branch columns: `branch_id`, `parent_index`, `virtual_share_percentage`, `base_cap_dollars`, `base_disbursed`, `spillover_disbursed`, and `active_heir_count`
+- heir columns: `heir_id`, `branch_id`, `age`, `capital_contribution`, `raw_match_demand`, `base_payout`, `spillover_payout`, and `unmet_demand`
+- annual columns: year-level aggregates such as AUM, market return, cap, payouts, and retained surplus
+
+The binary telemetry format should be reworked around explicit column blocks with per-year offsets and counts. This will allow consumers to read only the columns they need, improve vectorized processing, reduce unnecessary field loads, and make the branch-level data path explicit when fixing the current empty `branch_states` issue. The redesign must preserve a stable header, version the format, and keep a compatibility path for existing telemetry files where practical.

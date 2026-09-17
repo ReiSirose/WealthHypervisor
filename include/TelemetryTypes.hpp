@@ -7,8 +7,7 @@ struct HeirSnapshot {
 
     uint64_t heir_id{0};
     uint32_t branch_id{0};
-    uint16_t age{0};
-
+    uint32_t age{0};
     double capital_contribution{0.0};
     double raw_match_demand{0.0};
     double base_payout{0.0};

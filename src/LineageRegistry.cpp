@@ -207,9 +207,7 @@ double LineageRegistry::execute_annual_settlement_future(double global_cap, cons
         last_settled_payout = 0.0;
         return 0.0;
     }
-    // std::fill(annual_branch_base_caps.begin(), annual_branch_base_caps.end(), 0.0);
-    // std::fill(annual_branch_disbursed.begin(), annual_branch_disbursed.end(), 0.0);
-    // std::fill(annual_heir_raw_claims.begin(), annual_heir_raw_claims.end(), 0.0);
+    
     annual_branch_base_caps.assign(branch_arena.size(), 0.0);
     annual_branch_disbursed.assign(branch_arena.size(), 0.0);
     annual_heir_raw_claims.assign(beneficiary_arena.size(), 0.0);
@@ -312,11 +310,6 @@ void LineageRegistry::reserve_capacity(size_t expected_branches, size_t expected
     annual_heir_raw_claims.reserve(expected_heirs);
 }
 
-// void LineageRegistry::sync_runtime_buffers() noexcept {
-//     annual_branch_base_caps.resize(branch_arena.size(), 0.0);
-//     annual_branch_disbursed.resize(branch_arena.size(), 0.0);
-//     annual_heir_raw_claims.resize(beneficiary_arena.size(), 0.0);
-// }
 
 uint32_t LineageRegistry::get_branch_index_by_id(uint32_t branch_id) const {
     for (uint32_t idx = 0; idx < branch_arena.size(); ++idx) {
