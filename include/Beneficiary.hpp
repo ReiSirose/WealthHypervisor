@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <memory>
 
+constexpr uint32_t INVALID_INDEX_BRANCH = std::numeric_limits<uint32_t>::max();
+
 enum class HeirState : uint8_t {
 
     MINOR    = 0,   // Age < 21
@@ -27,7 +29,7 @@ struct alignas(64) Beneficiary {
       last_approved_base_payout(0.0),
       last_approved_spillover_payout(0.0),
       branch_id(parent_branch_id),
-      branch_index(INVALID_INDEX),
+      branch_index(INVALID_INDEX_BRANCH),
       age(start_age),
       state(start_age >= 21 ? HeirState::INACTIVE : HeirState::MINOR)
     {}

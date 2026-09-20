@@ -48,7 +48,7 @@ public:
     void capture_telemetry_snapshot(AnnualSnapshot& snap,  double global_cap, const PolicyEngine& policy) const;
 
     void rebuild_active_heir_indice() noexcept;
-    // void sync_runtime_buffers() noexcept;
+
     void reserve_capacity(size_t expected_branches, size_t expected_heirs);
     //getter 
     [[nodiscard]] inline size_t branch_count() const noexcept { return branch_arena.size(); }
