@@ -58,4 +58,5 @@ public:
     [[nodiscard]] inline const std::vector<BranchNode>& get_branches() const noexcept { return branch_arena; }
     [[nodiscard]] inline const std::vector<Beneficiary>& get_beneficiaries() const noexcept { return beneficiary_arena; }
     [[nodiscard]] inline std::vector<Beneficiary>& get_beneficiaries_mut() noexcept { return beneficiary_arena; }
+    [[nodiscard]] inline const std::vector<uint32_t>& get_active_heir_indices() const noexcept { return active_heir_index;}
 };

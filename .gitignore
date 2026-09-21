@@ -1,6 +1,6 @@
 /documentation
 /build
-/test
+/test/build
 .DS_Store
 .venv/
 venv/
