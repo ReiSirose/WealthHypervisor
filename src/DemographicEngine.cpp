@@ -2,7 +2,10 @@
 #include <algorithm>
 #include <iostream>
 
-DemographicEngine::DemographicEngine(DemographicConfig config) : config_(config), rng(config.seed)
+DemographicEngine::DemographicEngine(DemographicConfig config)
+        : config_(config),
+            rng(config.seed),
+    contribution_shock_pool(1024)
 {
 
 }
@@ -12,6 +15,8 @@ void DemographicEngine::seed_estate(MasterFund& fund) {
     if (config_.initial_branches == 0) return;
 
     fund.get_lineages_mut().reserve_capacity(config_.initial_branches * 2, config_.initial_heirs * 4);
+    base_contributions.clear();
+    base_contributions.reserve(config_.initial_heirs * 4);
 
     fund.create_root_branch(100);
     
@@ -38,7 +43,7 @@ void DemographicEngine::seed_estate(MasterFund& fund) {
         double base_contrib = contrib_dist(rng);
 
         fund.add_beneficiary(assigned_branch_idx, heir_id, age, base_contrib);
-        base_contributions[heir_id] = base_contrib;
+        base_contributions.push_back(base_contrib);
     }
 }
 
@@ -48,9 +53,6 @@ void DemographicEngine::step_demographics(MasterFund& fund) {
     
     // 1. Freeze initial count so newly born children are not iterated in the current year
     const size_t initial_heir_count = lineages.beneficiary_count();
-
-    std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
-    std::normal_distribution<double> shock_dist(1.0, config_.contribution_volatility);
 
     for (size_t i = 0; i < initial_heir_count; ++i) {
         // Direct index access keeps references safe if std::vector reallocates
@@ -67,19 +69,19 @@ void DemographicEngine::step_demographics(MasterFund& fund) {
 
         // --- Step A: Capital Contribution Deposit (Ages 21+) ---
         if (age >= 21) {
-            double base_contrib = base_contributions[heir_id];
+            double base_contrib = base_contributions[i];
             if (base_contrib <= 0.0) {
                 base_contrib = 10'000.0;
-                base_contributions[heir_id] = base_contrib;
+                base_contributions[i] = base_contrib;
             }
 
-            double shock = std::max(0.0, shock_dist(rng));
+            double shock = std::max(0.0, 1.0 + config_.contribution_volatility * contribution_shock_pool.get_next(rng));
             lineages.get_beneficiaries_mut()[i].deposit_capital(base_contrib * shock);
         }
 
         // --- Step B: Dynamic Sub-Branch Spawning (Ages 25-35) ---
         if (age >= 25 && age <= 35) {
-            if (prob_dist(rng) < config_.annual_branch_rate) {
+            if (probability_dist(rng) < config_.annual_branch_rate) {
                 if (current_branch_idx < lineages.branch_count()) {
                     uint32_t new_branch_code = 10000 + static_cast<uint32_t>(lineages.branch_count());
                     
@@ -95,9 +97,9 @@ void DemographicEngine::step_demographics(MasterFund& fund) {
 
         // --- Step C: Dynamic Birth Spawning (Ages 22-40) ---
         if (age >= 22 && age <= 40) {
-            if (prob_dist(rng) < config_.annual_birth_rate) {
+            if (probability_dist(rng) < config_.annual_birth_rate) {
                 uint64_t child_id = 500000 + lineages.beneficiary_count();
-                double child_base = base_contributions[heir_id] * 0.5;
+                double child_base = base_contributions[i] * 0.5;
                 if (child_base <= 0.0) child_base = 10'000.0;
 
                 // Re-fetch parent's branch index in case it was updated in Step B
@@ -106,7 +108,7 @@ void DemographicEngine::step_demographics(MasterFund& fund) {
                 if (parent_branch_idx < lineages.branch_count()) {
                     // Spawns new child in O(1) time
                     fund.add_beneficiary(parent_branch_idx, child_id, 0, 0.0);
-                    base_contributions[child_id] = child_base;
+                    base_contributions.push_back(child_base);
                 }
             }
         }

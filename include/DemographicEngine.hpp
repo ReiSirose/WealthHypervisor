@@ -2,7 +2,7 @@
 
 #include "MasterFund.hpp"
 #include "MarketEngine.hpp"
-#include <unordered_map>
+#include "random.h"
 #include <random>
 #include <vector>
 #include <cstdint>
@@ -28,6 +28,8 @@ public:
 
 private:
     DemographicConfig config_;
-    std::mt19937 rng;
-    std::unordered_map<uint64_t, double> base_contributions;
+    Xoshiro256PlusPlus rng;
+    std::uniform_real_distribution<double> probability_dist{0.0, 1.0};
+    NormalRandomPool contribution_shock_pool;
+    std::vector<double> base_contributions;
 };
