@@ -58,7 +58,9 @@ void DemographicEngine::step_demographics(MasterFund& fund) {
         // Direct index access keeps references safe if std::vector reallocates
         if (lineages.get_beneficiaries_mut()[i].state == HeirState::DECEASED) continue;
 
-        lineages.get_beneficiaries_mut()[i].tick_annual_aging();
+        if (lineages.get_beneficiaries_mut()[i].tick_annual_aging()) {
+            lineages.mark_active_heir_index_dirty();
+        }
 
         // Safely capture fields for this iteration
         const uint16_t age = lineages.get_beneficiaries_mut()[i].age;

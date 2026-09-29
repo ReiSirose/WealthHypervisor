@@ -52,7 +52,6 @@ struct alignas(64) Beneficiary {
 ```cpp
 enum class HeirState : uint8_t {
     MINOR    = 0,
-    INACTIVE = 1,
     ACTIVE   = 2,
     DECEASED = 3
 };
@@ -60,9 +59,8 @@ enum class HeirState : uint8_t {
 
 State transitions:
 
-- `MINOR` → `INACTIVE` on the 21st birthday
-- `INACTIVE` → `ACTIVE` when external capital is contributed
-- `ACTIVE` → `INACTIVE` if contribution falls to zero
+- `MINOR` → `ACTIVE` on the 21st birthday
+- Adult beneficiaries remain `ACTIVE` regardless of contribution; zero contribution yields zero payout
 - Any state → `DECEASED` when a death event triggers rebalance
 
 ### Struct Size Reference
@@ -232,7 +230,7 @@ struct DemographicConfig {
 #### Annual Aging
 
 - Each beneficiary age increments by 1
-- On 21st birthday: `MINOR` → `INACTIVE`
+- On 21st birthday: `MINOR` → `ACTIVE` (the active-heir index is marked dirty for a one-time rebuild)
 - On death: any state → `DECEASED`
 
 #### Birth Events

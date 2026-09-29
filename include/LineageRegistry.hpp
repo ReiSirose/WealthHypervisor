@@ -19,6 +19,7 @@ private:
     std::vector<BranchNode>  branch_arena;
     std::vector<Beneficiary> beneficiary_arena;
     std::vector<uint32_t>    active_heir_index;
+    bool active_heir_index_dirty{true};
 
     std::vector<double>      annual_branch_base_caps;
     std::vector<double>      annual_branch_disbursed;
@@ -48,6 +49,7 @@ public:
     void capture_telemetry_snapshot(AnnualSnapshot& snap,  double global_cap, const PolicyEngine& policy) const;
 
     void rebuild_active_heir_indice() noexcept;
+    void mark_active_heir_index_dirty() noexcept { active_heir_index_dirty = true; }
 
     void reserve_capacity(size_t expected_branches, size_t expected_heirs);
     //getter 

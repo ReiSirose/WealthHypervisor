@@ -8,8 +8,7 @@ constexpr uint32_t INVALID_INDEX_BRANCH = std::numeric_limits<uint32_t>::max();
 enum class HeirState : uint8_t {
 
     MINOR    = 0,   // Age < 21
-    INACTIVE = 1,   // Age >= 21, but no contribution submitted ($0 payout)
-    ACTIVE   = 2,   // Age >= 21, skin-in-the-game verified ($3x match)
+    ACTIVE   = 2,   // Age >= 21; contribution determines payout amount
     DECEASED = 3,   // Terminal state -> Triggers rebalance
 };
 
@@ -31,33 +30,29 @@ struct alignas(64) Beneficiary {
       branch_id(parent_branch_id),
       branch_index(INVALID_INDEX_BRANCH),
       age(start_age),
-      state(start_age >= 21 ? HeirState::INACTIVE : HeirState::MINOR)
+    state(start_age >= 21 ? HeirState::ACTIVE : HeirState::MINOR)
     {}
 
     inline bool is_eligible() const noexcept {
         return state == HeirState::ACTIVE;
     }
 
-    inline void tick_annual_aging() noexcept {
-        if(state == HeirState::DECEASED) return;
+    inline bool tick_annual_aging() noexcept {
+        if (state == HeirState::DECEASED) return false;
 
         ++age;
 
-        if(age >= 21 && state == HeirState::MINOR) {
-            state = HeirState::INACTIVE;
+        if (state == HeirState::MINOR && age >= 21) {
+            state = HeirState::ACTIVE;
+            return true;
         }
+        return false;
     }
 
     inline void deposit_capital(double cash_amount) noexcept {
         if (state == HeirState::DECEASED || state == HeirState::MINOR) return;
 
         annual_capital_contribution = cash_amount;
-
-        if (annual_capital_contribution > 0.0) {
-            state = HeirState::ACTIVE;
-        } else {
-            state = HeirState::INACTIVE;
-        }
     }
 
     inline double calculate_raw_net_demand(double multiplier) const noexcept {

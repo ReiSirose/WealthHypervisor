@@ -28,8 +28,8 @@ TEST(BeneficiaryTest, ConstructionAsAdult) {
     Beneficiary heir(1002, 21, 5);
 
     EXPECT_EQ(heir.age, 21);
-    EXPECT_EQ(heir.state, HeirState::INACTIVE);
-    EXPECT_FALSE(heir.is_eligible());
+    EXPECT_EQ(heir.state, HeirState::ACTIVE);
+    EXPECT_TRUE(heir.is_eligible());
 }
 
 // 2. Annual Aging Logic Tests
@@ -37,20 +37,25 @@ TEST(BeneficiaryTest, ConstructionAsAdult) {
 TEST(BeneficiaryTest, AgeIncrementForMinor) {
     Beneficiary heir(1001, 19, 1);
     
-    heir.tick_annual_aging();
+    EXPECT_FALSE(heir.tick_annual_aging());
     EXPECT_EQ(heir.age, 20);
     EXPECT_EQ(heir.state, HeirState::MINOR);
 
-    heir.tick_annual_aging();
+    EXPECT_TRUE(heir.tick_annual_aging());
     EXPECT_EQ(heir.age, 21);
-    EXPECT_EQ(heir.state, HeirState::INACTIVE); // Transitions at 21
+    EXPECT_EQ(heir.state, HeirState::ACTIVE); // Transitions at 21
+    EXPECT_TRUE(heir.is_eligible());
+
+    EXPECT_FALSE(heir.tick_annual_aging());
+    EXPECT_EQ(heir.age, 22);
+    EXPECT_EQ(heir.state, HeirState::ACTIVE);
 }
 
 TEST(BeneficiaryTest, DeceasedHeirDoesNotAge) {
     Beneficiary heir(1001, 30, 1);
     heir.state = HeirState::DECEASED;
 
-    heir.tick_annual_aging();
+    EXPECT_FALSE(heir.tick_annual_aging());
     EXPECT_EQ(heir.age, 30);
     EXPECT_EQ(heir.state, HeirState::DECEASED);
 }
@@ -85,24 +90,24 @@ TEST(BeneficiaryTest, AdultValidDepositActivatesEligibility) {
     EXPECT_TRUE(heir.is_eligible());
 }
 
-TEST(BeneficiaryTest, ZeroOrNegativeDepositDeactivatesEligibility) {
+TEST(BeneficiaryTest, ZeroOrNegativeDepositDoesNotDeactivateAdult) {
     Beneficiary heir(1001, 25, 1);
 
     // Deposit positive capital -> ACTIVE
     heir.deposit_capital(5'000.0);
     EXPECT_TRUE(heir.is_eligible());
 
-    // Deposit 0.0 capital -> INACTIVE
+    // Zero contribution means zero payout, not ineligibility.
     heir.deposit_capital(0.0);
     EXPECT_DOUBLE_EQ(heir.annual_capital_contribution, 0.0);
-    EXPECT_EQ(heir.state, HeirState::INACTIVE);
-    EXPECT_FALSE(heir.is_eligible());
+    EXPECT_EQ(heir.state, HeirState::ACTIVE);
+    EXPECT_TRUE(heir.is_eligible());
 }
 
 // 4. Net Demand Calculation Tests
 
 TEST(BeneficiaryTest, NonActiveStateYieldsZeroDemand) {
-    Beneficiary heir(1001, 25, 1); // Starts INACTIVE
+    Beneficiary heir(1001, 25, 1); // Adults are active even with zero contribution
 
     EXPECT_DOUBLE_EQ(heir.calculate_raw_net_demand(3.0), 0.0);
 

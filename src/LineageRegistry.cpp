@@ -49,10 +49,7 @@ uint32_t LineageRegistry::add_beneficiary(uint32_t branch_index,
 
     uint32_t beneficiary_index = static_cast<uint32_t>(beneficiary_arena.size());
 
-    HeirState initial_state = (age < 21) ? HeirState::MINOR : HeirState::INACTIVE;
-    if (age >= 21 && annual_contribution > 0.0) {
-        initial_state = HeirState::ACTIVE;
-    }
+    HeirState initial_state = (age < 21) ? HeirState::MINOR : HeirState::ACTIVE;
     
     // Construct beneficiary
     Beneficiary heir(beneficiary_id, age, branch_arena[branch_index].branch_id);
@@ -72,6 +69,7 @@ uint32_t LineageRegistry::add_beneficiary(uint32_t branch_index,
 
     if (initial_state == HeirState::ACTIVE) {
         branch.active_heir_count++;
+        mark_active_heir_index_dirty ();
     }
     return beneficiary_index;
 }
@@ -327,8 +325,9 @@ void LineageRegistry::rebuild_active_heir_indice() noexcept{
 
     for(uint32_t i = 0; i < beneficiary_arena.size(); ++i) {
         const Beneficiary& heir = beneficiary_arena[i];
-        if(heir.state == HeirState::ACTIVE && heir.annual_capital_contribution > 0.0) {
+        if(heir.state == HeirState::ACTIVE) {
             active_heir_index.push_back(i);
         }
     }
+    active_heir_index_dirty = false;
 }

@@ -100,8 +100,8 @@ TEST_F(LineageRegistryTest, AddBeneficiariesAndAssignHeirStates) {
     // 1. Minor Heir (< 21 years old)
     uint32_t minor_idx = registry.add_beneficiary(branch_a, 1001, 16, 5'000.0);
     
-    // 2. Adult Inactive Heir (>= 21 years old, 0 contribution)
-    uint32_t inactive_idx = registry.add_beneficiary(branch_a, 1002, 25, 0.0);
+    // 2. Adult with zero contribution is still active
+    uint32_t zero_contribution_idx = registry.add_beneficiary(branch_a, 1002, 25, 0.0);
 
     // 3. Adult Active Heir (>= 21 years old, > 0 contribution)
     uint32_t active_idx = registry.add_beneficiary(branch_a, 1003, 30, 10'000.0);
@@ -113,12 +113,12 @@ TEST_F(LineageRegistryTest, AddBeneficiariesAndAssignHeirStates) {
 
     // Verify Heir State Assignments
     EXPECT_EQ(beneficiaries[minor_idx].state, HeirState::MINOR);
-    EXPECT_EQ(beneficiaries[inactive_idx].state, HeirState::INACTIVE);
+    EXPECT_EQ(beneficiaries[zero_contribution_idx].state, HeirState::ACTIVE);
     EXPECT_EQ(beneficiaries[active_idx].state, HeirState::ACTIVE);
 
     // Verify Branch Heir Counters and Linkage
     EXPECT_EQ(branches[branch_a].heir_start_index, minor_idx); // First heir added to branch
-    EXPECT_EQ(branches[branch_a].active_heir_count, 1);         // Only active_idx counted
+    EXPECT_EQ(branches[branch_a].active_heir_count, 2);         // Both adults are active
 }
 
 
@@ -305,17 +305,17 @@ TEST_F(ActiveHeirIndexTest, EmptyArenaProducesEmptyIndex) {
 }
 
 // 2. Filtering Truth Table Logic
-TEST_F(ActiveHeirIndexTest, FiltersOnlyActiveHeirsWithPositiveContribution) {
-    // Arena Index 0: Active with valid contribution -> SHOULD BE INCLUDED
+TEST_F(ActiveHeirIndexTest, IncludesAllAdultsRegardlessOfContribution) {
+    // Arena Index 0: Adult with valid contribution -> included
     registry.add_beneficiary(root_branch_idx, 1001, 25, 5'000.0);
 
     // Arena Index 1: Minor with contribution -> EXCLUDED (state != ACTIVE)
     registry.add_beneficiary(root_branch_idx, 1002, 16, 5'000.0);
 
-    // Arena Index 2: Adult with 0 contribution -> EXCLUDED (state == INACTIVE)
+    // Arena Index 2: Adult with 0 contribution -> included
     registry.add_beneficiary(root_branch_idx, 1003, 30, 0.0);
 
-    // Arena Index 3: Active with valid contribution -> SHOULD BE INCLUDED
+    // Arena Index 3: Adult with valid contribution -> included
     registry.add_beneficiary(root_branch_idx, 1004, 40, 10'000.0);
 
     // Rebuild active index table
@@ -324,13 +324,14 @@ TEST_F(ActiveHeirIndexTest, FiltersOnlyActiveHeirsWithPositiveContribution) {
     const auto& active_indices = registry.get_active_heir_indices();
 
     // Verify exact size and contents
-    ASSERT_EQ(active_indices.size(), 2);
+    ASSERT_EQ(active_indices.size(), 3);
     EXPECT_EQ(active_indices[0], 0); // Heir 1001
-    EXPECT_EQ(active_indices[1], 3); // Heir 1004
+    EXPECT_EQ(active_indices[1], 2); // Heir 1003
+    EXPECT_EQ(active_indices[2], 3); // Heir 1004
 }
 
-TEST_F(ActiveHeirIndexTest, ExcludesActiveHeirsWithZeroOrNegativeContribution) {
-    // Add adult heir with contribution
+TEST_F(ActiveHeirIndexTest, IncludesActiveHeirsWithZeroOrNegativeContribution) {
+    // Contribution does not determine index membership.
     uint32_t idx = registry.add_beneficiary(root_branch_idx, 1001, 25, 1'000.0);
     
     // Manually force state to ACTIVE but clear contribution
@@ -339,7 +340,8 @@ TEST_F(ActiveHeirIndexTest, ExcludesActiveHeirsWithZeroOrNegativeContribution) {
 
     registry.rebuild_active_heir_indice();
 
-    EXPECT_TRUE(registry.get_active_heir_indices().empty());
+    ASSERT_EQ(registry.get_active_heir_indices().size(), 1);
+    EXPECT_EQ(registry.get_active_heir_indices()[0], idx);
 }
 
 // 3. Dynamic Mutations & Idempotency
@@ -350,10 +352,10 @@ TEST_F(ActiveHeirIndexTest, UpdatesCorrectlyWhenHeirStateChanges) {
     registry.rebuild_active_heir_indice();
     EXPECT_EQ(registry.get_active_heir_indices().size(), 0);
 
-    // Aging up: Transition state to ACTIVE
+    // Aging up transitions the beneficiary to ACTIVE and invalidates the cache.
     auto& heirs = registry.get_beneficiaries_mut();
-    heirs[minor_idx].age = 21;
-    heirs[minor_idx].state = HeirState::ACTIVE;
+    EXPECT_TRUE(heirs[minor_idx].tick_annual_aging());
+    registry.mark_active_heir_index_dirty();
 
     // Rebuild and verify inclusion
     registry.rebuild_active_heir_indice();
